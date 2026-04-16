@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html lang="fi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>QR-skanneri — Messut</title>
+<script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0f1117;
+    --surface: #1a1d27;
+    --surface2: #22263a;
+    --accent: #4ade80;
+    --accent-dim: rgba(74,222,128,0.12);
+    --accent-glow: rgba(74,222,128,0.3);
+    --text: #f0f2f8;
+    --text-muted: #7a7f9a;
+    --border: rgba(255,255,255,0.07);
+    --danger: #f87171;
+    --danger-dim: rgba(248,113,113,0.1);
+    --warn: #fbbf24;
+  }
+
+  html, body {
+    min-height: 100vh;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 16px;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  body {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 0 0 6rem;
+  }
+
+  header {
+    width: 100%;
+    max-width: 480px;
+    padding: 2rem 1.5rem 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .logo-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .dot {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 10px var(--accent-glow);
+    animation: pulse 2s ease-in-out infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.6; transform: scale(0.85); }
+  }
+
+  h1 {
+    font-family: 'DM Mono', monospace;
+    font-size: 13px;
+    font-weight: 500;
+    letter-spacing: 0.12em;
+    color: var(--text-muted);
+    text-transform: uppercase;
+  }
+
+  .subtitle {
+    font-size: 22px;
+    font-weight: 600;
+    color: var(--text);
+    letter-spacing: -0.02em;
+  }
+
+  main {
+    width: 100%;
+    max-width: 480px;
+    padding: 0 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  /* Scanner box */
+  .scanner-wrap {
+    position: relative;
+    border-radius: 16px;
+    overflow: hidden;
+    background: var(--surface);
+    border: 1px solid var(--border);
+  }
+
+  #reader {
+    width: 100%;
+    min-height: 260px;
+  }
+
+  #reader video {
+    border-radius: 16px !important;
+    object-fit: cover !important;
+  }
+
+  .scanner-overlay {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .scan-frame {
+    width: 160px; height: 160px;
+    position: relative;
+  }
+
+  .scan-frame::before, .scan-frame::after,
+  .scan-frame span::before, .scan-frame span::after {
+    content: '';
+    position: absolute;
+    width: 24px; height: 24px;
+    border-color: var(--accent);
+    border-style: solid;
+  }
+  .scan-frame::before { top: 0; left: 0; border-width: 2px 0 0 2px; border-radius: 3px 0 0 0; }
+  .scan-frame::after  { top: 0; right: 0; border-width: 2px 2px 0 0; border-radius: 0 3px 0 0; }
+  .scan-frame span::before { bottom: 0; left: 0; border-width: 0 0 2px 2px; border-radius: 0 0 0 3px; }
+  .scan-frame span::after  { bottom: 0; right: 0; border-width: 0 2px 2px 0; border-radius: 0 0 3px 0; }
+
+  .scanline {
+    position: absolute;
+    left: 6px; right: 6px;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--accent), transparent);
+    animation: scanline 2s ease-in-out infinite;
+  }
+
+  @keyframes scanline {
+    0% { top: 6px; opacity: 0; }
+    10% { opacity: 1; }
+    90% { opacity: 1; }
+    100% { top: calc(100% - 6px); opacity: 0; }
+  }
+
+  /* Status */
+  .status {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 16px;
+    border-radius: 12px;
+    font-size: 14px;
+    font-weight: 500;
+    transition: all 0.3s ease;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    min-height: 48px;
+  }
+
+  .status.success {
+    background: var(--accent-dim);
+    border-color: rgba(74,222,128,0.25);
+    color: var(--accent);
+  }
+
+  .status.error {
+    background: var(--danger-dim);
+    border-color: rgba(248,113,113,0.25);
+    color: var(--danger);
+  }
+
+  .status.warn {
+    background: rgba(251,191,36,0.1);
+    border-color: rgba(251,191,36,0.25);
+    color: var(--warn);
+  }
+
+  .status-icon {
+    font-size: 18px;
+    flex-shrink: 0;
+  }
+
+  /* Counter */
+  .counter-row {
+    display: flex;
+    gap: 10px;
+  }
+
+  .counter-card {
+    flex: 1;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 14px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .counter-label {
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+  }
+
+  .counter-value {
+    font-family: 'DM Mono', monospace;
+    font-size: 28px;
+    font-weight: 500;
+    color: var(--text);
+    line-height: 1;
+  }
+
+  .counter-card.accent-card .counter-value {
+    color: var(--accent);
+  }
+
+  /* Log */
+  .log-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 0.5rem;
+  }
+
+  .log-title {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    font-weight: 500;
+  }
+
+  .clear-btn {
+    font-size: 11px;
+    font-family: 'DM Mono', monospace;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: 6px;
+    transition: color 0.2s, background 0.2s;
+  }
+
+  .clear-btn:hover { color: var(--danger); background: var(--danger-dim); }
+
+  .log-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    max-height: 320px;
+    overflow-y: auto;
+  }
+
+  .log-list:empty::after {
+    content: 'Ei vielä skannauksia';
+    font-size: 13px;
+    color: var(--text-muted);
+    text-align: center;
+    padding: 2rem 0;
+    display: block;
+  }
+
+  .log-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 14px;
+    animation: slideIn 0.25s ease;
+  }
+
+  @keyframes slideIn {
+    from { opacity: 0; transform: translateY(-8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .log-item.duplicate {
+    border-color: rgba(251,191,36,0.3);
+    background: rgba(251,191,36,0.05);
+  }
+
+  .log-num {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--text-muted);
+    min-width: 22px;
+  }
+
+  .log-code {
+    font-family: 'DM Mono', monospace;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text);
+    flex: 1;
+  }
+
+  .log-time {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--text-muted);
+  }
+
+  .dup-badge {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--warn);
+    background: rgba(251,191,36,0.1);
+    border-radius: 5px;
+    padding: 2px 6px;
+  }
+
+  /* Pause button */
+  .pause-btn {
+    width: 100%;
+    padding: 14px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 15px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.2s, border-color 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+
+  .pause-btn:hover { background: var(--surface); border-color: rgba(255,255,255,0.15); }
+  .pause-btn.paused { color: var(--accent); border-color: rgba(74,222,128,0.3); }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo-row">
+    <div class="dot" id="statusDot"></div>
+    <h1>QR-skanneri</h1>
+  </div>
+  <div class="subtitle">Messuosasto</div>
+</header>
+
+<main>
+
+  <div class="scanner-wrap">
+    <div id="reader"></div>
+    <div class="scanner-overlay">
+      <div class="scan-frame">
+        <span></span>
+        <div class="scanline"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="status" id="statusBox">
+    <span class="status-icon">⬤</span>
+    <span id="statusText">Käynnistetään kameraa…</span>
+  </div>
+
+  <div class="counter-row">
+    <div class="counter-card accent-card">
+      <div class="counter-label">Skannattu</div>
+      <div class="counter-value" id="totalCount">0</div>
+    </div>
+    <div class="counter-card">
+      <div class="counter-label">Uniikkeja</div>
+      <div class="counter-value" id="uniqueCount">0</div>
+    </div>
+    <div class="counter-card">
+      <div class="counter-label">Kaksoiskappaleet</div>
+      <div class="counter-value" id="dupCount">0</div>
+    </div>
+  </div>
+
+  <button class="pause-btn" id="pauseBtn" onclick="togglePause()">⏸ Tauota skannaus</button>
+
+  <div class="log-header">
+    <div class="log-title">Kirjaushistoria</div>
+    <button class="clear-btn" onclick="clearLog()">Tyhjennä näkymä</button>
+  </div>
+
+  <div class="log-list" id="logList"></div>
+
+</main>
+
+<script>
+const SHEETS_URL = "https://script.google.com/a/macros/intellipocket.com/s/AKfycbw0jFF_0Z4rpurxbGWZGVnu3lijogGRzPyadRcEB_PrumeVHIWk_sQv8awKSq8TI27t/exec";
+const COOLDOWN_MS = 2500;
+
+let scanned = new Set();
+let totalCount = 0;
+let dupCount = 0;
+let logIndex = 0;
+let lastScanTime = 0;
+let paused = false;
+let scanner;
+
+function setStatus(msg, type = '') {
+  const box = document.getElementById('statusBox');
+  const txt = document.getElementById('statusText');
+  box.className = 'status' + (type ? ' ' + type : '');
+  txt.textContent = msg;
+}
+
+function updateCounters() {
+  document.getElementById('totalCount').textContent = totalCount;
+  document.getElementById('uniqueCount').textContent = scanned.size;
+  document.getElementById('dupCount').textContent = dupCount;
+}
+
+function nowStr() {
+  return new Date().toLocaleTimeString('fi-FI', {hour:'2-digit', minute:'2-digit', second:'2-digit'});
+}
+
+function addLogItem(code, isDup) {
+  logIndex++;
+  const list = document.getElementById('logList');
+  const item = document.createElement('div');
+  item.className = 'log-item' + (isDup ? ' duplicate' : '');
+  item.innerHTML = `
+    <span class="log-num">${String(logIndex).padStart(2,'0')}</span>
+    <span class="log-code">${code}</span>
+    ${isDup ? '<span class="dup-badge">Dup</span>' : ''}
+    <span class="log-time">${nowStr()}</span>
+  `;
+  list.insertBefore(item, list.firstChild);
+}
+
+async function sendToSheets(code) {
+  try {
+    await fetch(SHEETS_URL, {
+      method: 'POST',
+      mode: 'no-cors',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ asiakasnumero: code })
+    });
+  } catch(e) {
+    console.error('Sheets-virhe:', e);
+  }
+}
+
+function onScanSuccess(decodedText) {
+  const now = Date.now();
+  if (paused || now - lastScanTime < COOLDOWN_MS) return;
+  lastScanTime = now;
+
+  totalCount++;
+  const isDup = scanned.has(decodedText);
+  if (isDup) {
+    dupCount++;
+    setStatus('Kaksoisskannaus: ' + decodedText, 'warn');
+  } else {
+    scanned.add(decodedText);
+    setStatus('Tallennettu: ' + decodedText, 'success');
+    sendToSheets(decodedText);
+  }
+
+  addLogItem(decodedText, isDup);
+  updateCounters();
+
+  setTimeout(() => {
+    if (!paused) setStatus('Valmis skannaamaan', 'success');
+  }, 2000);
+}
+
+function togglePause() {
+  paused = !paused;
+  const btn = document.getElementById('pauseBtn');
+  if (paused) {
+    btn.textContent = '▶ Jatka skannaus';
+    btn.classList.add('paused');
+    setStatus('Skannaus tauolla', 'warn');
+  } else {
+    btn.textContent = '⏸ Tauota skannaus';
+    btn.classList.remove('paused');
+    setStatus('Valmis skannaamaan', 'success');
+  }
+}
+
+function clearLog() {
+  document.getElementById('logList').innerHTML = '';
+  logIndex = 0;
+}
+
+// Init scanner
+window.addEventListener('load', () => {
+  scanner = new Html5Qrcode("reader");
+  const config = {
+    fps: 10,
+    qrbox: { width: 220, height: 220 },
+    aspectRatio: 1.0
+  };
+
+  scanner.start(
+    { facingMode: "environment" },
+    config,
+    onScanSuccess,
+    () => {}
+  ).then(() => {
+    setStatus('Valmis skannaamaan', 'success');
+    document.getElementById('statusDot').style.background = '#4ade80';
+  }).catch(err => {
+    setStatus('Kameralupa puuttuu — salli kamera selaimesta', 'error');
+    document.getElementById('statusDot').style.background = '#f87171';
+    document.getElementById('statusDot').style.animation = 'none';
+  });
+});
+</script>
+</body>
+</html>
