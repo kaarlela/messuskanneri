@@ -411,7 +411,7 @@
 </main>
 
 <script>
-const SHEETS_URL = "https://script.google.com/a/macros/intellipocket.com/s/AKfycbw0jFF_0Z4rpurxbGWZGVnu3lijogGRzPyadRcEB_PrumeVHIWk_sQv8awKSq8TI27t/exec";
+const SHEETS_URL = "https://script.google.com/a/macros/intellipocket.com/s/AKfycbyldDuOfFhbhFTM3dRvF_GxKeH1T5kdsfmMpyi6QGKSX5g_Ps2Z51SSTMJNnGjJ_AmI/exec";
 const COOLDOWN_MS = 2500;
 
 let scanned = new Set();
@@ -455,12 +455,8 @@ function addLogItem(code, isDup) {
 
 async function sendToSheets(code) {
   try {
-    await fetch(SHEETS_URL, {
-      method: 'POST',
-      mode: 'no-cors',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ asiakasnumero: code })
-    });
+    const url = SHEETS_URL + '?asiakasnumero=' + encodeURIComponent(code);
+    await fetch(url, { method: 'GET', mode: 'no-cors' });
   } catch(e) {
     console.error('Sheets-virhe:', e);
   }
